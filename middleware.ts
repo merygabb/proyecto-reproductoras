@@ -29,6 +29,13 @@ export default withAuth(
       }
     }
 
+    // Saldos: Encargado, Supervisor y Operario
+    if (path.startsWith('/saldos')) {
+      if (token.role !== 'ENCARGADO' && token.role !== 'SUPERVISOR' && token.role !== 'OPERARIO') {
+        return NextResponse.redirect(new URL('/dashboard', req.url))
+      }
+    }
+
     return NextResponse.next()
   },
   {

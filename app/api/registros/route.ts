@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
+import { startOfDay, startOfWeek, startOfMonth, endOfDay, endOfWeek, endOfMonth } from 'date-fns'
 
 export async function GET(request: Request) {
   try {
@@ -15,25 +16,47 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
+    const period = searchParams.get('period') as 'day' | 'week' | 'month' | null
+    const exportAll = searchParams.get('export') === '1'
 
-    const where = session.user.role === 'OPERARIO' 
+    // Filtro por periodo
+    let dateFilter: any = {}
+    if (period) {
+      const now = new Date()
+      if (period === 'day') {
+        dateFilter = { gte: startOfDay(now), lte: endOfDay(now) }
+      } else if (period === 'week') {
+        dateFilter = { gte: startOfWeek(now, { weekStartsOn: 1 }), lte: endOfWeek(now, { weekStartsOn: 1 }) }
+      } else if (period === 'month') {
+        dateFilter = { gte: startOfMonth(now), lte: endOfMonth(now) }
+      }
+    }
+
+    const whereBase = session.user.role === 'OPERARIO' 
       ? { usuarioId: session.user.id }
       : {}
+
+    const where = period ? { ...whereBase, fecha: dateFilter } : whereBase
+
+    // Si es exportación, devolver todo sin paginar
+    if (exportAll) {
+      const registros = await prisma.registroProduccion.findMany({
+        where,
+        include: {
+          usuario: { select: { nombre: true, email: true } },
+        },
+        orderBy: { fecha: 'desc' },
+      })
+      return NextResponse.json({ registros, pagination: null })
+    }
 
     const [registros, total] = await Promise.all([
       prisma.registroProduccion.findMany({
         where,
         include: {
-          usuario: {
-            select: {
-              nombre: true,
-              email: true,
-            },
-          },
+          usuario: { select: { nombre: true, email: true } },
         },
-        orderBy: {
-          fecha: 'desc',
-        },
+        orderBy: { fecha: 'desc' },
         skip,
         take: limit,
       }),
@@ -90,6 +113,9 @@ export async function POST(request: Request) {
     // Crear alertas si es necesario
     await crearAlertas(registro)
 
+  // Movimientos automáticos de inventario
+  await crearMovimientosInventario(registro)
+
     return NextResponse.json(registro, { status: 201 })
   } catch (error) {
     console.error('Error creating registro:', error)
@@ -138,6 +164,150 @@ async function crearAlertas(registro: any) {
     await prisma.alerta.createMany({
       data: alertas,
     })
+  }
+}
+
+async function crearMovimientosInventario(registro: any) {
+  try {
+    const movimientosAlimento: any[] = []
+    const movimientosAves: any[] = []
+    const movimientosHuevo: any[] = []
+
+    // Consumo de alimento (CONSUMO)
+    if (registro.alimentoHembra && registro.alimentoHembra > 0) {
+      movimientosAlimento.push({
+        fecha: registro.fecha,
+        tipo: 'CONSUMO',
+        sexo: 'HEMBRA',
+        cantidadKg: registro.alimentoHembra,
+        referenciaRegistroId: registro.id,
+      })
+    }
+    if (registro.alimentoMacho && registro.alimentoMacho > 0) {
+      movimientosAlimento.push({
+        fecha: registro.fecha,
+        tipo: 'CONSUMO',
+        sexo: 'MACHO',
+        cantidadKg: registro.alimentoMacho,
+        referenciaRegistroId: registro.id,
+      })
+    }
+
+    // Mortalidad (MORTALIDAD)
+    if (registro.mortalidadHembra && registro.mortalidadHembra > 0) {
+      movimientosAves.push({
+        fecha: registro.fecha,
+        tipo: 'MORTALIDAD',
+        sexo: 'HEMBRA',
+        cantidad: registro.mortalidadHembra,
+        referenciaRegistroId: registro.id,
+      })
+    }
+    if (registro.mortalidadMacho && registro.mortalidadMacho > 0) {
+      movimientosAves.push({
+        fecha: registro.fecha,
+        tipo: 'MORTALIDAD',
+        sexo: 'MACHO',
+        cantidad: registro.mortalidadMacho,
+        referenciaRegistroId: registro.id,
+      })
+    }
+
+    // Ingreso de producción de huevos (INGRESO)
+    const mapHuevos: { [k: string]: number } = {
+      FERTIL_A: registro.huevoFertilA || 0,
+      FERTIL_B: registro.huevoFertilB || 0,
+      JUMBO: registro.huevoJumbo || 0,
+      GRANDE: registro.huevoGrande || 0,
+      MEDIANO: registro.huevoMediano || 0,
+      PEQUENO: registro.huevoPequeno || 0,
+      PICADO: registro.huevoPicado || 0,
+      DESECHO: registro.huevoDesecho || 0,
+    }
+    Object.entries(mapHuevos).forEach(([categoria, cantidad]) => {
+      if (cantidad > 0) {
+        movimientosHuevo.push({
+          fecha: registro.fecha,
+          categoria,
+          tipo: 'INGRESO',
+          cantidad,
+          referenciaRegistroId: registro.id,
+        })
+      }
+    })
+
+    // Ingresos opcionales capturados por operario en el formulario
+    if (registro.ingresoAlimentoHembra && registro.ingresoAlimentoHembra > 0) {
+      movimientosAlimento.push({
+        fecha: registro.fecha,
+        tipo: 'INGRESO',
+        sexo: 'HEMBRA',
+        cantidadKg: registro.ingresoAlimentoHembra,
+        referenciaRegistroId: registro.id,
+      })
+    }
+    if (registro.ingresoAlimentoMacho && registro.ingresoAlimentoMacho > 0) {
+      movimientosAlimento.push({
+        fecha: registro.fecha,
+        tipo: 'INGRESO',
+        sexo: 'MACHO',
+        cantidadKg: registro.ingresoAlimentoMacho,
+        referenciaRegistroId: registro.id,
+      })
+    }
+    if (registro.ingresoAvesHembra && registro.ingresoAvesHembra > 0) {
+      movimientosAves.push({
+        fecha: registro.fecha,
+        tipo: 'INGRESO',
+        sexo: 'HEMBRA',
+        cantidad: registro.ingresoAvesHembra,
+        referenciaRegistroId: registro.id,
+      })
+    }
+    if (registro.ingresoAvesMacho && registro.ingresoAvesMacho > 0) {
+      movimientosAves.push({
+        fecha: registro.fecha,
+        tipo: 'INGRESO',
+        sexo: 'MACHO',
+        cantidad: registro.ingresoAvesMacho,
+        referenciaRegistroId: registro.id,
+      })
+    }
+
+    // Salidas de huevo opcionales capturadas por operario
+    const mapSalidas: { [k: string]: number } = {
+      FERTIL_A: registro.salidaFertilA || 0,
+      FERTIL_B: registro.salidaFertilB || 0,
+      JUMBO: registro.salidaJumbo || 0,
+      GRANDE: registro.salidaGrande || 0,
+      MEDIANO: registro.salidaMediano || 0,
+      PEQUENO: registro.salidaPequeno || 0,
+      PICADO: registro.salidaPicado || 0,
+      DESECHO: registro.salidaDesecho || 0,
+    }
+    Object.entries(mapSalidas).forEach(([categoria, cantidad]) => {
+      if (cantidad > 0) {
+        movimientosHuevo.push({
+          fecha: registro.fecha,
+          categoria,
+          tipo: 'SALIDA',
+          cantidad,
+          referenciaRegistroId: registro.id,
+        })
+      }
+    })
+
+    if (movimientosAlimento.length) {
+      await prisma.movimientoAlimento.createMany({ data: movimientosAlimento })
+    }
+    if (movimientosAves.length) {
+      await prisma.movimientoAves.createMany({ data: movimientosAves })
+    }
+    if (movimientosHuevo.length) {
+      await prisma.movimientoHuevo.createMany({ data: movimientosHuevo })
+    }
+  } catch (error) {
+    console.error('Error creando movimientos de inventario:', error)
   }
 }
 

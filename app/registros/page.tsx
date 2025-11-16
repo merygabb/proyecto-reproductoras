@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
@@ -8,6 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { formatearFecha, formatearHora, formatearNumero } from '@/lib/utils'
 import Link from 'next/link'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
+import * as XLSX from 'xlsx'
 
 export default function RegistrosPage() {
   const { data: session, status } = useSession()
@@ -15,6 +18,9 @@ export default function RegistrosPage() {
   const [registros, setRegistros] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 })
+  const [periodo, setPeriodo] = useState<'day' | 'week' | 'month'>('day')
+  const [exportando, setExportando] = useState(false)
+  const contenedorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -26,11 +32,11 @@ export default function RegistrosPage() {
     if (status === 'authenticated') {
       fetchRegistros()
     }
-  }, [status, pagination.page])
+  }, [status, pagination.page, periodo])
 
   const fetchRegistros = async () => {
     try {
-      const res = await fetch(`/api/registros?page=${pagination.page}&limit=${pagination.limit}`)
+      const res = await fetch(`/api/registros?page=${pagination.page}&limit=${pagination.limit}&period=${periodo}`)
       const data = await res.json()
       setRegistros(data.registros)
       setPagination(data.pagination)
@@ -38,6 +44,73 @@ export default function RegistrosPage() {
       console.error('Error fetching registros:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const exportarPDF = async () => {
+    if (!contenedorRef.current) return
+    setExportando(true)
+    try {
+      const canvas = await html2canvas(contenedorRef.current, { scale: 2, useCORS: true, logging: false })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const imgWidth = 210
+      const pageHeight = 297
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        heightLeft -= pageHeight
+      }
+
+      const fecha = new Date().toLocaleDateString('es-ES').replace(/\//g, '-')
+      pdf.save(`Registros-${periodo}-${fecha}.pdf`)
+    } catch (e) {
+      alert('Error al exportar PDF')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  const exportarExcel = async () => {
+    try {
+      const res = await fetch(`/api/registros?export=1&period=${periodo}`)
+      const data = await res.json()
+      const rows = data.registros.map((r: any) => ({
+        Fecha: new Date(r.fecha).toLocaleDateString('es-ES'),
+        'Usuario (nombre)': r.usuario?.nombre || '',
+        'Usuario (email)': r.usuario?.email || '',
+        'Mortalidad Hembra': r.mortalidadHembra,
+        'Mortalidad Macho': r.mortalidadMacho ?? 0,
+        'Alimento Hembra (kg)': r.alimentoHembra,
+        'Alimento Macho (kg)': r.alimentoMacho,
+        'Fértil A': r.huevoFertilA,
+        'Fértil B': r.huevoFertilB,
+        Jumbo: r.huevoJumbo,
+        Grande: r.huevoGrande,
+        Mediano: r.huevoMediano,
+        Pequeño: r.huevoPequeno,
+        Picado: r.huevoPicado,
+        Desecho: r.huevoDesecho,
+        'Total Fértiles': r.totalFertiles,
+        'Total Huevos': r.totalHuevos,
+        Observaciones: r.observaciones || '',
+      }))
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Registros')
+      const fecha = new Date().toLocaleDateString('es-ES').replace(/\//g, '-')
+      XLSX.writeFile(wb, `Registros-${periodo}-${fecha}.xlsx`)
+    } catch (e) {
+      alert('Error al exportar Excel')
     }
   }
 
@@ -60,7 +133,14 @@ export default function RegistrosPage() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Registros de Producción</h1>
-            <p className="text-gray-600">Historial de registros diarios</p>
+            <p className="text-gray-600">Historial por período seleccionado</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant={periodo === 'day' ? 'default' : 'outline'} size="sm" onClick={() => { setPagination(p => ({...p, page: 1})); setPeriodo('day') }}>Hoy</Button>
+            <Button variant={periodo === 'week' ? 'default' : 'outline'} size="sm" onClick={() => { setPagination(p => ({...p, page: 1})); setPeriodo('week') }}>Semana</Button>
+            <Button variant={periodo === 'month' ? 'default' : 'outline'} size="sm" onClick={() => { setPagination(p => ({...p, page: 1})); setPeriodo('month') }}>Mes</Button>
+            <Button variant="outline" size="sm" onClick={exportarExcel}>Exportar Excel</Button>
+            <Button size="sm" onClick={exportarPDF} disabled={exportando}>{exportando ? 'Generando PDF...' : 'Exportar PDF'}</Button>
           </div>
           {(session?.user.role === 'OPERARIO' || session?.user.role === 'ENCARGADO') && (
             <Link href="/registros/nuevo">
@@ -91,7 +171,7 @@ export default function RegistrosPage() {
           </Card>
         ) : (
           <>
-            <div className="space-y-4">
+            <div className="space-y-4" ref={contenedorRef}>
               {registros.map((registro) => (
                 <Card key={registro.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>

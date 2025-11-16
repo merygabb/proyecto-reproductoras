@@ -17,8 +17,23 @@ export default function NuevoRegistroPage() {
   
   const [formData, setFormData] = useState({
     mortalidadHembra: 0,
+    mortalidadMacho: 0,
     alimentoHembra: 0,
     alimentoMacho: 0,
+    // Ingresos de inventario capturados por operario
+    ingresoAlimentoHembra: 0,
+    ingresoAlimentoMacho: 0,
+    ingresoAvesHembra: 0,
+    ingresoAvesMacho: 0,
+    // Salidas de huevo capturadas por operario
+    salidaFertilA: 0,
+    salidaFertilB: 0,
+    salidaJumbo: 0,
+    salidaGrande: 0,
+    salidaMediano: 0,
+    salidaPequeno: 0,
+    salidaPicado: 0,
+    salidaDesecho: 0,
     huevoFertilA: 0,
     huevoFertilB: 0,
     huevoGrande: 0,
@@ -151,6 +166,18 @@ export default function NuevoRegistroPage() {
                   placeholder="0"
                 />
               </div>
+            <div className="space-y-2">
+              <Label htmlFor="mortalidadMacho">Mortalidad Machos</Label>
+              <Input
+                id="mortalidadMacho"
+                name="mortalidadMacho"
+                type="number"
+                min="0"
+                value={formData.mortalidadMacho}
+                onChange={handleChange}
+                placeholder="0"
+              />
+            </div>
               <div className="space-y-2">
                 <Label htmlFor="alimentoHembra">Alimento Hembra (kg)</Label>
                 <Input
@@ -179,6 +206,120 @@ export default function NuevoRegistroPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Ingresos de Inventario (solo Operario) */}
+          {session?.user?.role === 'OPERARIO' && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ingreso de Alimento</CardTitle>
+                  <CardDescription>Registrar sacos/kg recibidos</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ingresoAlimentoHembra">Hembra (kg)</Label>
+                    <Input
+                      id="ingresoAlimentoHembra"
+                      name="ingresoAlimentoHembra"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.ingresoAlimentoHembra}
+                      onChange={handleChange}
+                      placeholder="0.0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ingresoAlimentoMacho">Macho (kg)</Label>
+                    <Input
+                      id="ingresoAlimentoMacho"
+                      name="ingresoAlimentoMacho"
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={formData.ingresoAlimentoMacho}
+                      onChange={handleChange}
+                      placeholder="0.0"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ingreso de Aves (Lote)</CardTitle>
+                  <CardDescription>Registrar aves ingresadas al lote</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="ingresoAvesHembra">Hembras</Label>
+                    <Input
+                      id="ingresoAvesHembra"
+                      name="ingresoAvesHembra"
+                      type="number"
+                      min="0"
+                      value={formData.ingresoAvesHembra}
+                      onChange={handleChange}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ingresoAvesMacho">Machos</Label>
+                    <Input
+                      id="ingresoAvesMacho"
+                      name="ingresoAvesMacho"
+                      type="number"
+                      min="0"
+                      value={formData.ingresoAvesMacho}
+                      onChange={handleChange}
+                      placeholder="0"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Salida de Huevo</CardTitle>
+                  <CardDescription>Registrar salidas por tipo</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaFertilA">Fértil A</Label>
+                    <Input id="salidaFertilA" name="salidaFertilA" type="number" min="0" value={formData.salidaFertilA} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaFertilB">Fértil B</Label>
+                    <Input id="salidaFertilB" name="salidaFertilB" type="number" min="0" value={formData.salidaFertilB} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaJumbo">Jumbo</Label>
+                    <Input id="salidaJumbo" name="salidaJumbo" type="number" min="0" value={formData.salidaJumbo} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaGrande">Grande</Label>
+                    <Input id="salidaGrande" name="salidaGrande" type="number" min="0" value={formData.salidaGrande} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaMediano">Mediano</Label>
+                    <Input id="salidaMediano" name="salidaMediano" type="number" min="0" value={formData.salidaMediano} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaPequeno">Pequeño</Label>
+                    <Input id="salidaPequeno" name="salidaPequeno" type="number" min="0" value={formData.salidaPequeno} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaPicado">Picado</Label>
+                    <Input id="salidaPicado" name="salidaPicado" type="number" min="0" value={formData.salidaPicado} onChange={handleChange} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salidaDesecho">Desecho</Label>
+                    <Input id="salidaDesecho" name="salidaDesecho" type="number" min="0" value={formData.salidaDesecho} onChange={handleChange} />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           {/* Producción de Huevos Fértiles */}
           <Card className="border-l-4 border-l-green-500">

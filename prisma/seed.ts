@@ -90,6 +90,7 @@ async function main() {
     const huevoDesecho = Math.floor(Math.random() * 5)
 
     const mortalidadHembra = Math.floor(Math.random() * 3)
+    const mortalidadMacho = Math.floor(Math.random() * 2)
     const alimentoHembra = 125 + Math.random() * 20
     const alimentoMacho = 140 + Math.random() * 20
 
@@ -97,6 +98,7 @@ async function main() {
       data: {
         fecha,
         mortalidadHembra,
+        mortalidadMacho,
         alimentoHembra,
         alimentoMacho,
         huevoFertilA,

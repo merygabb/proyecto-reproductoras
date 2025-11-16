@@ -32,19 +32,37 @@
     "clsx": "^2.0.0",
     "tailwind-merge": "^2.2.0",
     "jspdf": "^2.5.1",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "@types/bcryptjs": "^2.4.6",
+    "@mermaid-js/mermaid-cli": "^10.9.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "prisma": "^5.7.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3",
     "tsx": "^4.7.0"
+  },
+  "diagramExport": {
+    "input": "docs",
+    "output": "docs/exports"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "prisma:studio": "prisma studio",
+    "export:diagrams": "powershell -Command \"New-Item -ItemType Directory -Force -Path docs/exports | Out-Null\" && npx mmdc -i docs/arquitectura.mmd -o docs/exports/arquitectura.png && npx mmdc -i docs/erd.mmd -o docs/exports/erd.png && npx mmdc -i docs/infra.mmd -o docs/exports/infra.png"
   }
 }
 

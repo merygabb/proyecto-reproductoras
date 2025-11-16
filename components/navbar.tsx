@@ -23,16 +23,19 @@ export function Navbar() {
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/registros', label: 'Registros' },
       { href: '/reportes', label: 'Reportes' },
+      { href: '/saldos', label: 'Saldos' },
     ],
     ENCARGADO: [
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/registros', label: 'Registros' },
       { href: '/reportes', label: 'Reportes' },
+      { href: '/saldos', label: 'Saldos' },
     ],
     OPERARIO: [
       { href: '/dashboard', label: 'Dashboard' },
       { href: '/registros/nuevo', label: 'Nuevo Registro' },
       { href: '/registros', label: 'Mis Registros' },
+      { href: '/saldos', label: 'Saldos' },
     ],
   }
 
