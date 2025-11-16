@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  ENCARGADO
+  OPERARIO
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nombre    String
+  password  String
+  role      Role     @default(OPERARIO)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  registros RegistroProduccion[]
+  
+  @@map("users")
+}
+
+model RegistroProduccion {
+  id        String   @id @default(cuid())
+  fecha     DateTime @default(now())
+  
+  // Mortalidad y alimentación
+  mortalidadHembra Int @default(0)
+  alimentoHembra   Float @default(0) // en kg
+  alimentoMacho    Float @default(0) // en kg
+  
+  // Producción de huevos fértiles
+  huevoFertilA Int @default(0)
+  huevoFertilB Int @default(0)
+  
+  // Producción por tamaño
+  huevoGrande   Int @default(0)
+  huevoMediano  Int @default(0)
+  huevoPequeno  Int @default(0)
+  huevoJumbo    Int @default(0)
+  
+  // Huevos con problemas
+  huevoPicado   Int @default(0)
+  huevoDesecho  Int @default(0)
+  
+  // Totales calculados
+  totalHuevos   Int @default(0)
+  totalFertiles Int @default(0)
+  
+  // Observaciones
+  observaciones String?
+  
+  // Usuario que registró
+  usuarioId String
+  usuario   User   @relation(fields: [usuarioId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("registros_produccion")
+  @@index([fecha])
+  @@index([usuarioId])
+}
+
+model ConfiguracionGranja {
+  id                  String   @id @default(cuid())
+  nombreGranja        String
+  totalHembras        Int
+  totalMachos         Int
+  
+  // Parámetros ideales para alertas
+  porcentajeMortalidadMaximo Float @default(0.5) // 0.5%
+  consumoAlimentoHembraMin   Float @default(120) // gramos
+  consumoAlimentoHembraMax   Float @default(150) // gramos
+  consumoAlimentoMachoMin    Float @default(130) // gramos
+  consumoAlimentoMachoMax    Float @default(160) // gramos
+  
+  // Porcentajes esperados de producción
+  porcentajeProduccionMinimo Float @default(85) // 85%
+  porcentajeFertilidadMinimo Float @default(90) // 90%
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("configuracion_granja")
+}
+
+model Alerta {
+  id          String   @id @default(cuid())
+  tipo        String   // "MORTALIDAD_ALTA", "CONSUMO_BAJO", "PRODUCCION_BAJA", etc.
+  severidad   String   // "INFO", "WARNING", "CRITICAL"
+  titulo      String
+  descripcion String
+  resuelta    Boolean  @default(false)
+  fecha       DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("alertas")
+  @@index([fecha])
+  @@index([resuelta])
+}
+
+
+
