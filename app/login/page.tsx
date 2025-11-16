@@ -98,11 +98,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-md border border-blue-100">
-              <p className="text-sm font-semibold text-blue-900 mb-2">Usuario de prueba:</p>
-              <p className="text-xs text-blue-700">Email: admin@granja.com</p>
-              <p className="text-xs text-blue-700">Contraseña: admin123</p>
-            </div>
+          
           </CardContent>
         </Card>
       </div>
