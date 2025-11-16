@@ -86,7 +86,18 @@ export function Navbar() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => signOut({ callbackUrl: '/login' })}
+                  onClick={async () => {
+                    try {
+                      await signOut({ 
+                        callbackUrl: '/login',
+                        redirect: true 
+                      })
+                    } catch (error) {
+                      console.error('Error al cerrar sesión:', error)
+                      // Forzar redirección manual si falla
+                      window.location.href = '/login'
+                    }
+                  }}
                 >
                   Cerrar Sesión
                 </Button>

@@ -90,36 +90,55 @@ export async function POST(request: Request) {
 
     // Calcular totales
     const totalHuevos = 
-      body.huevoFertilA +
-      body.huevoFertilB +
-      body.huevoGrande +
-      body.huevoMediano +
-      body.huevoPequeno +
-      body.huevoJumbo +
-      body.huevoPicado +
-      body.huevoDesecho
+      (body.huevoFertilA || 0) +
+      (body.huevoFertilB || 0) +
+      (body.huevoGrande || 0) +
+      (body.huevoMediano || 0) +
+      (body.huevoPequeno || 0) +
+      (body.huevoJumbo || 0) +
+      (body.huevoPicado || 0) +
+      (body.huevoDesecho || 0)
 
-    const totalFertiles = body.huevoFertilA + body.huevoFertilB
+    const totalFertiles = (body.huevoFertilA || 0) + (body.huevoFertilB || 0)
+
+    // Extraer solo los campos válidos del modelo RegistroProduccion
+    // Excluir campos de inventario que se usarán solo para movimientos
+    const registroData = {
+      mortalidadHembra: body.mortalidadHembra || 0,
+      mortalidadMacho: body.mortalidadMacho || 0,
+      alimentoHembra: body.alimentoHembra || 0,
+      alimentoMacho: body.alimentoMacho || 0,
+      huevoFertilA: body.huevoFertilA || 0,
+      huevoFertilB: body.huevoFertilB || 0,
+      huevoGrande: body.huevoGrande || 0,
+      huevoMediano: body.huevoMediano || 0,
+      huevoPequeno: body.huevoPequeno || 0,
+      huevoJumbo: body.huevoJumbo || 0,
+      huevoPicado: body.huevoPicado || 0,
+      huevoDesecho: body.huevoDesecho || 0,
+      totalHuevos,
+      totalFertiles,
+      observaciones: body.observaciones || null,
+      usuarioId: session.user.id,
+    }
 
     const registro = await prisma.registroProduccion.create({
-      data: {
-        ...body,
-        totalHuevos,
-        totalFertiles,
-        usuarioId: session.user.id,
-      },
+      data: registroData,
     })
+
+    // Crear movimientos de inventario (necesitamos pasar el body completo para los movimientos)
+    await crearMovimientosInventario(registro, body)
 
     // Crear alertas si es necesario
     await crearAlertas(registro)
 
-  // Movimientos automáticos de inventario
-  await crearMovimientosInventario(registro)
-
     return NextResponse.json(registro, { status: 201 })
   } catch (error) {
     console.error('Error creating registro:', error)
-    return NextResponse.json({ error: 'Error al crear registro' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Error al crear registro', 
+      details: error instanceof Error ? error.message : 'Error desconocido' 
+    }, { status: 500 })
   }
 }
 
@@ -167,7 +186,7 @@ async function crearAlertas(registro: any) {
   }
 }
 
-async function crearMovimientosInventario(registro: any) {
+async function crearMovimientosInventario(registro: any, body: any) {
   try {
     const movimientosAlimento: any[] = []
     const movimientosAves: any[] = []
@@ -236,54 +255,54 @@ async function crearMovimientosInventario(registro: any) {
       }
     })
 
-    // Ingresos opcionales capturados por operario en el formulario
-    if (registro.ingresoAlimentoHembra && registro.ingresoAlimentoHembra > 0) {
+    // Ingresos opcionales capturados por operario en el formulario (del body original)
+    if (body.ingresoAlimentoHembra && body.ingresoAlimentoHembra > 0) {
       movimientosAlimento.push({
         fecha: registro.fecha,
         tipo: 'INGRESO',
         sexo: 'HEMBRA',
-        cantidadKg: registro.ingresoAlimentoHembra,
+        cantidadKg: body.ingresoAlimentoHembra,
         referenciaRegistroId: registro.id,
       })
     }
-    if (registro.ingresoAlimentoMacho && registro.ingresoAlimentoMacho > 0) {
+    if (body.ingresoAlimentoMacho && body.ingresoAlimentoMacho > 0) {
       movimientosAlimento.push({
         fecha: registro.fecha,
         tipo: 'INGRESO',
         sexo: 'MACHO',
-        cantidadKg: registro.ingresoAlimentoMacho,
+        cantidadKg: body.ingresoAlimentoMacho,
         referenciaRegistroId: registro.id,
       })
     }
-    if (registro.ingresoAvesHembra && registro.ingresoAvesHembra > 0) {
+    if (body.ingresoAvesHembra && body.ingresoAvesHembra > 0) {
       movimientosAves.push({
         fecha: registro.fecha,
         tipo: 'INGRESO',
         sexo: 'HEMBRA',
-        cantidad: registro.ingresoAvesHembra,
+        cantidad: body.ingresoAvesHembra,
         referenciaRegistroId: registro.id,
       })
     }
-    if (registro.ingresoAvesMacho && registro.ingresoAvesMacho > 0) {
+    if (body.ingresoAvesMacho && body.ingresoAvesMacho > 0) {
       movimientosAves.push({
         fecha: registro.fecha,
         tipo: 'INGRESO',
         sexo: 'MACHO',
-        cantidad: registro.ingresoAvesMacho,
+        cantidad: body.ingresoAvesMacho,
         referenciaRegistroId: registro.id,
       })
     }
 
-    // Salidas de huevo opcionales capturadas por operario
+    // Salidas de huevo opcionales capturadas por operario (del body original)
     const mapSalidas: { [k: string]: number } = {
-      FERTIL_A: registro.salidaFertilA || 0,
-      FERTIL_B: registro.salidaFertilB || 0,
-      JUMBO: registro.salidaJumbo || 0,
-      GRANDE: registro.salidaGrande || 0,
-      MEDIANO: registro.salidaMediano || 0,
-      PEQUENO: registro.salidaPequeno || 0,
-      PICADO: registro.salidaPicado || 0,
-      DESECHO: registro.salidaDesecho || 0,
+      FERTIL_A: body.salidaFertilA || 0,
+      FERTIL_B: body.salidaFertilB || 0,
+      JUMBO: body.salidaJumbo || 0,
+      GRANDE: body.salidaGrande || 0,
+      MEDIANO: body.salidaMediano || 0,
+      PEQUENO: body.salidaPequeno || 0,
+      PICADO: body.salidaPicado || 0,
+      DESECHO: body.salidaDesecho || 0,
     }
     Object.entries(mapSalidas).forEach(([categoria, cantidad]) => {
       if (cantidad > 0) {
@@ -308,6 +327,7 @@ async function crearMovimientosInventario(registro: any) {
     }
   } catch (error) {
     console.error('Error creando movimientos de inventario:', error)
+    throw error // Re-throw para que el error principal lo capture
   }
 }
 

@@ -66,17 +66,21 @@ export default function NuevoRegistroPage() {
         body: JSON.stringify(formData),
       })
 
+      const data = await res.json()
+      
       if (res.ok) {
         setSuccess(true)
         setTimeout(() => {
           router.push('/registros')
         }, 2000)
       } else {
-        alert('Error al guardar el registro')
+        const errorMessage = data.details || data.error || 'Error al guardar el registro'
+        console.error('Error del servidor:', errorMessage)
+        alert(errorMessage)
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('Error al guardar el registro')
+      alert('Error al guardar el registro. Por favor, verifica tu conexión e intenta nuevamente.')
     } finally {
       setLoading(false)
     }
